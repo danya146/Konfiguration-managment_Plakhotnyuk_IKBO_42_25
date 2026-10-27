@@ -1,6 +1,0 @@
-ls
-cd documents
-ls
-cat note.txt
-cd ..
-cat test.txt

@@ -1,4 +1,0 @@
-ls -la
-cd /home
-unknown_cmd
-ls "это не выполнится"
