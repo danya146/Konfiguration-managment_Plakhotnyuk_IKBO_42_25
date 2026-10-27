@@ -7,6 +7,7 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
+from vfs import VFS
 
 class Logger:
     def __init__(self, log_path: str | None) -> None:
@@ -30,6 +31,7 @@ class TerminalEmulator:
         self.username = getpass.getuser()
         self.hostname = socket.gethostname()
         self.logger = Logger(config.get("log_file"))
+        self.vfs = VFS(config.get("vfs_path"))
         
         self.root.title(f"Эмулятор - [{self.username}@{self.hostname}]")
         self.root.geometry("800x600")
@@ -109,9 +111,43 @@ class TerminalEmulator:
             if not is_script:
                 self.root.quit()
             return True
-        elif command in ["ls", "cd"]:
-            args_str = " ".join(command_args)
-            self.print_to_console(f"Заглушка: {command} {args_str}".strip())
+        elif command == "ls":
+            files = self.vfs.ls()
+            self.print_to_console("  ".join(files))
+            return True
+        elif command == "cd":
+            if not command_args:
+                self.handle_error(raw_command, "cd: missing operand")
+                return False
+            err = self.vfs.cd(command_args[0])
+            if err:
+                self.handle_error(raw_command, err)
+                return False
+            return True
+        elif command == "mkdir":
+            if not command_args:
+                self.handle_error(raw_command, "mkdir: missing operand")
+                return False
+            err = self.vfs.mkdir(command_args[0])
+            if err:
+                self.handle_error(raw_command, err)
+                return False
+            return True
+        elif command == "touch":
+            if not command_args:
+                self.handle_error(raw_command, "touch: missing operand")
+                return False
+            err = self.vfs.touch(command_args[0])
+            if err:
+                self.handle_error(raw_command, err)
+                return False
+            return True
+        elif command == "cat":
+            if not command_args:
+                self.handle_error(raw_command, "cat: missing operand")
+                return False
+            content = self.vfs.cat(command_args[0])
+            self.print_to_console(content)
             return True
         else:
             self.handle_error(raw_command, f"Команда не найдена: {command}")
