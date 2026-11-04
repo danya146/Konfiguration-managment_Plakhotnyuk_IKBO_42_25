@@ -9,6 +9,7 @@ from tkinter import scrolledtext
 
 from src.logger import log_event
 from src.parser import parse_command
+from src.vfs import VFS
 
 
 class ShellEmulator:
@@ -24,6 +25,7 @@ class ShellEmulator:
         self.os_name = platform.system()
         self.log_path = log_path
         self.script_path = script_path
+        self.vfs = VFS(vfs_path)
 
         self.root.title(f"Эмулятор - [{self.username}@{self.hostname}]")
         self.root.geometry("600x400")
@@ -65,6 +67,10 @@ class ShellEmulator:
                 for line in f:
                     line = line.strip()
                     if line:
+                        self._append_text(
+                            f"{self.username}@{self.hostname}"
+                            f":{self.vfs.current_path}$ {line}\n"
+                        )
                         success = self._execute_command(line, is_script=True)
                         if not success:
                             self._append_text(
@@ -80,7 +86,9 @@ class ShellEmulator:
         """Обрабатывает ввод пользователя."""
         line = self.entry.get()
         self.entry.delete(0, "end")
-        self._append_text(f"{self.username}@{self.hostname}:~$ {line}\n")
+        self._append_text(
+            f"{self.username}@{self.hostname}:{self.vfs.current_path}$ {line}\n"
+        )
         self._execute_command(line)
 
     def _execute_command(self, line: str, is_script: bool = False) -> bool:
@@ -95,9 +103,21 @@ class ShellEmulator:
             self.root.quit()
             return True
         elif cmd == "ls":
-            self._append_text(f"ls: аргументы: {args}\n")
+            result = self.vfs.ls(args)
+            if result.startswith("ls:"):
+                error_msg = result
+                self._append_text(f"{result}\n")
+                log_event(self.log_path, line, error_msg)
+                return False
+            if result:
+                self._append_text(f"{result}\n")
         elif cmd == "cd":
-            self._append_text(f"cd: аргументы: {args}\n")
+            result = self.vfs.cd(args)
+            if result:
+                error_msg = result
+                self._append_text(f"{result}\n")
+                log_event(self.log_path, line, error_msg)
+                return False
         else:
             error_msg = f"команда '{cmd}' не найдена"
             self._append_text(f"Ошибка: {error_msg}.\n")

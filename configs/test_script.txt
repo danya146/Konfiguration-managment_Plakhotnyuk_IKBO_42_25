@@ -1,4 +1,9 @@
-ls -la
-cd "My Folder"
-unknown_command
+ls
+cd dir1
+ls
+cd subdir1
+ls
+cd /
+ls
+cd non_existent_dir
 ls
