@@ -1,29 +1,43 @@
 """Эмулятор оболочки ОС."""
 
+import argparse
 import getpass
 import platform
 import socket
 import tkinter as tk
 from tkinter import scrolledtext
 
+from src.logger import log_event
 from src.parser import parse_command
 
 
 class ShellEmulator:
     """Класс эмулятора оболочки."""
 
-    def __init__(self, root: tk.Tk) -> None:
+    def __init__(
+        self, root: tk.Tk, vfs_path: str, log_path: str, script_path: str
+    ) -> None:
         """Инициализация эмулятора.
 
         :param root: Корневое окно Tkinter.
+        :param vfs_path: Путь к VFS.
+        :param log_path: Путь к лог-файлу.
+        :param script_path: Путь к стартовому скрипту.
         """
         self.root = root
         self.username = getpass.getuser()
         self.hostname = socket.gethostname()
         self.os_name = platform.system()
+        self.log_path = log_path
+        self.script_path = script_path
+
         self.root.title(f"Эмулятор - [{self.username}@{self.hostname}]")
         self.root.geometry("600x400")
         self._setup_ui()
+
+        print(f"VFS Path: {vfs_path}")
+        print(f"Log Path: {log_path}")
+        print(f"Script Path: {script_path}")
 
     def _setup_ui(self) -> None:
         """Настройка графического интерфейса."""
@@ -34,10 +48,14 @@ class ShellEmulator:
         self.text_area = scrolledtext.ScrolledText(
             self.root, state="disabled", wrap="word"
         )
-        self.text_area.pack(side="top", fill="both", expand=True, padx=5, pady=5)
+        self.text_area.pack(
+            side="top", fill="both", expand=True, padx=5, pady=5
+        )
 
         self._append_text(f"Добро пожаловать в эмулятор {self.os_name}!\n")
-        self._append_text("Введите 'exit' для выхода.\n\n")
+
+        if self.script_path:
+            self.root.after(100, self._run_script)
 
     def _append_text(self, text: str) -> None:
         """Добавляет текст в текстовое поле.
@@ -49,6 +67,19 @@ class ShellEmulator:
         self.text_area.see("end")
         self.text_area.config(state="disabled")
 
+    def _run_script(self) -> None:
+        """Выполняет стартовый скрипт."""
+        try:
+            with open(self.script_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        self._execute_command(line, is_script=True)
+        except FileNotFoundError:
+            self._append_text(
+                f"Ошибка: скрипт {self.script_path} не найден.\n"
+            )
+
     def _process_input(self, event: tk.Event) -> None:
         """Обрабатывает ввод пользователя.
 
@@ -57,25 +88,58 @@ class ShellEmulator:
         line = self.entry.get()
         self.entry.delete(0, "end")
         self._append_text(f"{self.username}@{self.hostname}:~$ {line}\n")
+        self._execute_command(line)
 
+    def _execute_command(self, line: str, is_script: bool = False) -> None:
+        """Выполняет команду и логирует результат.
+
+        :param line: Строка команды.
+        :param is_script: Флаг выполнения из скрипта.
+        """
         cmd, args = parse_command(line)
         if not cmd:
             return
 
+        error_msg = ""
         if cmd == "exit":
+            log_event(self.log_path, line)
             self.root.quit()
+            return
         elif cmd == "ls":
             self._append_text(f"ls: аргументы: {args}\n")
         elif cmd == "cd":
             self._append_text(f"cd: аргументы: {args}\n")
         else:
-            self._append_text(f"Ошибка: команда '{cmd}' не найдена.\n")
+            error_msg = f"команда '{cmd}' не найдена"
+            self._append_text(f"Ошибка: {error_msg}.\n")
+            if is_script:
+                self._append_text("Выполнение скрипта остановлено.\n")
+                log_event(self.log_path, line, error_msg)
+                return
+
+        log_event(self.log_path, line, error_msg)
 
 
 def main() -> None:
     """Точка входа в приложение."""
+    parser = argparse.ArgumentParser(description="Эмулятор оболочки ОС")
+    parser.add_argument(
+        "--vfs", type=str, default="./vfs", help="Путь к VFS"
+    )
+    parser.add_argument(
+        "--log",
+        type=str,
+        default="./logs/log.json",
+        help="Путь к лог-файлу",
+    )
+    parser.add_argument(
+        "--script", type=str, default="", help="Путь к стартовому скрипту"
+    )
+
+    args = parser.parse_args()
+
     root = tk.Tk()
-    app = ShellEmulator(root)
+    app = ShellEmulator(root, args.vfs, args.log, args.script)
     root.mainloop()
 
 
