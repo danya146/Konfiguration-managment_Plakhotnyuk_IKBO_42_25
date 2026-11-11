@@ -69,3 +69,37 @@ def build_tree(package, graph, max_depth, filter_str):
     return {package: dfs_build(
         package, graph, max_depth, filter_str, visited, current_path
     )}
+def get_load_order(package, graph):
+    """
+    Вычисляет порядок загрузки зависимостей (топологическая сортировка).
+    Возвращает список пакетов в порядке загрузки или None, если найден цикл.
+    """
+    visited = set()
+    current_path = set()
+    load_order = []
+
+    def visit(node):
+        if node in current_path:
+            # Найден цикл! Топологическая сортировка невозможна.
+            raise ValueError(f"Обнаружен цикл в зависимостях: {node}")
+        if node in visited:
+            return
+
+        current_path.add(node)
+        
+        # Сначала обходим всех детей (зависимости)
+        deps = graph.get(node, [])
+        for dep in deps:
+            visit(dep)
+            
+        current_path.remove(node)
+        visited.add(node)
+        # Добавляем узел в список ПОСЛЕ его зависимостей
+        load_order.append(node)
+
+    try:
+        visit(package)
+        return load_order
+    except ValueError as error:
+        print(f"Ошибка при построении порядка загрузки: {error}")
+        return None

@@ -57,6 +57,10 @@ def add_visual_args(parser):
         "--filter", type=str, default="",
         help="Подстрока для фильтрации пакетов."
     )
+    parser.add_argument(
+        "--load-order", action="store_true",
+        help="Показать порядок загрузки зависимостей."
+    )
 
 def create_parser():
     """
@@ -106,7 +110,16 @@ def main():
         if not graph:
             print("Ошибка: Тестовый граф пуст или не найден.")
             sys.exit(1)
-            
+        if args.load_order:
+            print("\nВычисление порядка загрузки зависимостей...")
+            order = graph_builder.get_load_order(args.package.upper(), graph)
+            if order:
+                print("Порядок загрузки (от зависимостей к корню):")
+                for i, pkg in enumerate(order, 1):
+                    print(f"{i}. {pkg}")
+            else:
+                print("Не удалось вычислить порядок загрузки из-за цикла.")
+            sys.exit(0)
         tree = graph_builder.build_tree(
             args.package.upper(), graph, args.depth, args.filter
         )
