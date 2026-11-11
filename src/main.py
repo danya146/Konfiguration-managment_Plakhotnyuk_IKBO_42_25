@@ -1,6 +1,7 @@
 import argparse
 import sys
 import data_fetcher
+import graph_builder
 
 def positive_int(value):
     """
@@ -70,28 +71,22 @@ def create_parser():
     add_visual_args(parser)
     return parser
 
-def get_metadata(args):
+def print_tree(tree, indent=0):
     """
-    Получает метаданные пакета в зависимости от режима работы.
-    Возвращает строку метаданных или None.
+    Выводит дерево в консоль (простой формат).
     """
-    if args.test_mode:
-        if not args.repo:
-            print("Ошибка: В режиме тестирования нужно указать --repo")
-            return None
-        print(f"[Тест] Чтение из файла: {args.repo}")
-        return data_fetcher.fetch_from_file(args.repo)
-    else:
-        if not args.repo:
-            print("Ошибка: Для реальных данных нужен --repo")
-            return None
-        print(f"[Реальный режим] Загрузка по URL: {args.repo}")
-        return data_fetcher.fetch_from_url(args.repo)
+    for pkg, children in tree.items():
+        if pkg == "[CYCLE]":
+            print("  " * indent + "└── [Обнаружен цикл]")
+            continue
+        print("  " * indent + "├── " + pkg)
+        if children:
+            print_tree(children, indent + 1)
 
 def main():
     """
     Главная функция приложения.
-    Парсит аргументы, получает метаданные и выводит зависимости.
+    Парсит аргументы, строит граф и выводит его.
     """
     parser = create_parser()
     try:
@@ -101,19 +96,25 @@ def main():
 
     print(f"=== Пакет: {args.package} (Версия: {args.version}) ===")
 
-    metadata = get_metadata(args)
-    if metadata is None:
-        print("Не удалось получить метаданные. Завершение работы.")
-        sys.exit(1)
-
-    dependencies = data_fetcher.extract_dependencies(metadata)
-
-    if not dependencies:
-        print("Прямые зависимости не найдены.")
+    if args.test_mode:
+        if not args.repo:
+            print("Ошибка: Нужен --repo с путем к файлу графа.")
+            sys.exit(1)
+        print(f"[Тест] Чтение графа из: {args.repo}")
+        graph = graph_builder.parse_test_graph(args.repo)
+        
+        if not graph:
+            print("Ошибка: Тестовый граф пуст или не найден.")
+            sys.exit(1)
+            
+        tree = graph_builder.build_tree(
+            args.package.upper(), graph, args.depth, args.filter
+        )
+        print("\nГраф зависимостей (DFS):")
+        print_tree(tree)
     else:
-        print(f"\nНайдено прямых зависимостей: {len(dependencies)}")
-        for dep in dependencies:
-            print(f"- {dep}")
+        print("Реальный режим (сбор через интернет) пока не реализован.")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
