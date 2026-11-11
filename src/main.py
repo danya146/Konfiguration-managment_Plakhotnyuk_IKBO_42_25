@@ -2,7 +2,7 @@ import argparse
 import sys
 import data_fetcher
 import graph_builder
-
+import visualizer
 def positive_int(value):
     """
     Валидатор для глубины анализа.
@@ -60,6 +60,10 @@ def add_visual_args(parser):
     parser.add_argument(
         "--load-order", action="store_true",
         help="Показать порядок загрузки зависимостей."
+    )
+    parser.add_argument(
+        "--plantuml", action="store_true",
+        help="Вывод графа в формате PlantUML."
     )
 
 def create_parser():
@@ -120,14 +124,19 @@ def main():
             else:
                 print("Не удалось вычислить порядок загрузки из-за цикла.")
             sys.exit(0)
-        tree = graph_builder.build_tree(
+                tree = graph_builder.build_tree(
             args.package.upper(), graph, args.depth, args.filter
         )
-        print("\nГраф зависимостей (DFS):")
-        print_tree(tree)
-    else:
-        print("Реальный режим (сбор через интернет) пока не реализован.")
-        sys.exit(0)
+        
+        if args.plantuml:
+            print("\nКод PlantUML для графа зависимостей:")
+            print(visualizer.generate_plantuml(tree))
+        elif args.ascii_tree:
+            print("\nГраф зависимостей (ASCII-дерево):")
+            print_tree(tree)
+        else:
+            print("\nГраф зависимостей (DFS):")
+            print_tree(tree)
 
 if __name__ == "__main__":
     main()
