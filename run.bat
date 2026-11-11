@@ -1,3 +1,12 @@
 @echo off
 chcp 65001 >nul
-python src\main.py %*
+if "%~1"=="" (
+    echo ====================================================
+    echo ЗАПУСК ТЕСТОВ ПРОЕКТА
+    echo ====================================================
+    python -m unittest discover -s tests -v
+    echo ====================================================
+) else (
+    python src\main.py %*
+)
+pause

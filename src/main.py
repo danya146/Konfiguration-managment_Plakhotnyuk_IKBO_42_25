@@ -3,6 +3,7 @@ import sys
 import data_fetcher
 import graph_builder
 import visualizer
+
 def positive_int(value):
     """
     Валидатор для глубины анализа.
@@ -22,7 +23,7 @@ def positive_int(value):
 
 def add_base_args(parser):
     """
-    Добавляет базовые аргументы (пакет, версия, репозиторий).
+    Добавляет базовые аргументы.
     """
     parser.add_argument(
         "--package", "-p", type=str, required=True,
@@ -30,7 +31,7 @@ def add_base_args(parser):
     )
     parser.add_argument(
         "--repo", type=str,
-        help="URL или путь к файлу тестового репозитория."
+        help="URL или путь к файлу."
     )
     parser.add_argument(
         "--test-mode", action="store_true",
@@ -50,26 +51,29 @@ def add_visual_args(parser):
         help="Вывод в формате ASCII-дерева."
     )
     parser.add_argument(
+        "--plantuml", action="store_true",
+        help="Вывод в формате PlantUML."
+    )
+    parser.add_argument(
+        "--output", type=str, default="graph.puml",
+        help="Путь для сохранения файла PlantUML."
+    )
+    parser.add_argument(
         "--depth", "-d", type=positive_int, default=3,
-        help="Максимальная глубина анализа."
+        help="Максимальная глубина."
     )
     parser.add_argument(
         "--filter", type=str, default="",
-        help="Подстрока для фильтрации пакетов."
+        help="Подстрока для фильтрации."
     )
     parser.add_argument(
         "--load-order", action="store_true",
-        help="Показать порядок загрузки зависимостей."
-    )
-    parser.add_argument(
-        "--plantuml", action="store_true",
-        help="Вывод графа в формате PlantUML."
+        help="Порядок загрузки."
     )
 
 def create_parser():
     """
-    Создает и настраивает парсер аргументов командной строки.
-    Возвращает объект ArgumentParser.
+    Создает и настраивает парсер.
     """
     parser = argparse.ArgumentParser(
         description="Инструмент визуализации графа зависимостей.",
@@ -81,7 +85,7 @@ def create_parser():
 
 def print_tree(tree, indent=0):
     """
-    Выводит дерево в консоль (простой формат).
+    Выводит дерево в консоль.
     """
     for pkg, children in tree.items():
         if pkg == "[CYCLE]":
@@ -93,8 +97,7 @@ def print_tree(tree, indent=0):
 
 def main():
     """
-    Главная функция приложения.
-    Парсит аргументы, строит граф и выводит его.
+    Главная функция.
     """
     parser = create_parser()
     try:
@@ -114,29 +117,35 @@ def main():
         if not graph:
             print("Ошибка: Тестовый граф пуст или не найден.")
             sys.exit(1)
+
         if args.load_order:
             print("\nВычисление порядка загрузки зависимостей...")
-            order = graph_builder.get_load_order(args.package.upper(), graph)
+            order = graph_builder.get_load_order(
+                args.package.upper(), graph
+            )
             if order:
                 print("Порядок загрузки (от зависимостей к корню):")
                 for i, pkg in enumerate(order, 1):
                     print(f"{i}. {pkg}")
             else:
-                print("Не удалось вычислить порядок загрузки из-за цикла.")
+                print("Не удалось вычислить порядок из-за цикла.")
             sys.exit(0)
-                tree = graph_builder.build_tree(
+            
+        tree = graph_builder.build_tree(
             args.package.upper(), graph, args.depth, args.filter
         )
         
         if args.plantuml:
             print("\nКод PlantUML для графа зависимостей:")
             print(visualizer.generate_plantuml(tree))
-        elif args.ascii_tree:
-            print("\nГраф зависимостей (ASCII-дерево):")
-            print_tree(tree)
+            if visualizer.save_plantuml_to_file(tree, args.output):
+                print(f"\n[Успех] Диаграмма сохранена в файл: {args.output}")
         else:
             print("\nГраф зависимостей (DFS):")
             print_tree(tree)
+    else:
+        print("Реальный режим (интернет) пока не реализован.")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

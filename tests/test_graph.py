@@ -57,6 +57,16 @@ class TestGraphBuilder(unittest.TestCase):
         """Тест: топологическая сортировка при наличии цикла."""
         order = graph_builder.get_load_order("X", self.cyclic_graph)
         self.assertIsNone(order)
-
+    def test_plantuml_generation(self):
+        """Тест: проверка генерации кода PlantUML."""
+        import visualizer
+        # Берем простой граф
+        tree = {"A": {"B": {}}}
+        puml_code = visualizer.generate_plantuml(tree)
+        
+        # Проверяем, что в коде есть обязательные элементы
+        self.assertIn("@startuml", puml_code)
+        self.assertIn("@enduml", puml_code)
+        self.assertIn("A --> B", puml_code)
 if __name__ == '__main__':
     unittest.main()
