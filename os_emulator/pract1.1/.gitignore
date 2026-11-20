@@ -1,0 +1,8 @@
+os_emulator/pract1.1/src/__pycache__/
+os_emulator/pract1.1/src/__pycache__/vfs.cpython-314.pyc
+.pyc
+.py[cod]
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
